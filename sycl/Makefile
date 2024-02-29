@@ -2,7 +2,7 @@
 # User Options
 #===============================================================================
 
-CC          ?= llvm
+CC          = oneapi
 OPTIMIZE    ?= yes
 DEBUG       ?= no
 PROFILE     ?= no
@@ -52,6 +52,7 @@ endif
 ifeq ($(CC),oneapi)
   CC = icpx
   CFLAGS += -fsycl
+  LDFLAGS += -fsycl
 endif
 
 ifeq ($(CC),opensycl)
