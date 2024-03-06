@@ -55,11 +55,11 @@ LDFLAGS = -lm -fsycl -fintelfpga -Xsv
 # Linker Flags
 
 ifeq ($(TARGET_OUTPUT), emulator)
-LDFLAGS += -Xsemulator -Xstarget=$(HW_DEVICE)
+LDFLAGS += -Xsemulator -Xstarget=$(HW_FULL_PATH)
 endif
 
 ifeq ($(TARGET_OUTPUT), simulation)
-LDFLAGS += -Xssimulation -Xstarget=$(HW_DEVICE)
+LDFLAGS += -Xssimulation -Xstarget=$(HW_FULL_PATH)
 endif
 
 ifeq ($(TARGET_OUTPUT), report)
