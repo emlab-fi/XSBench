@@ -28,17 +28,17 @@ obj = $(source:.cpp=.o)
 #===============================================================================
 ifeq ($(TARGET_HW), Agilex7)
 HW_DEVICE = Agilex7
-HW_FULL_PATH = /glob/development-tools/versions/oneapi/2024.0.2.1/oneapi/de10_agilex:2B2E_8GBx4
+HW_FULL_PATH = /opt/intel/oneapi/de10_agilex:2B2E_8GBx4
 endif
 
 ifeq ($(TARGET_HW), Stratix10)
 HW_DEVICE = Stratix10
-HW_FULL_PATH = /glob/development-tools/versions/oneapi/2024.0.2.1/oneapi/intel_s10sx_pac:pac_s10
+HW_FULL_PATH = /opt/intel/oneapi/intel_s10sx_pac:pac_s10
 endif
 
 ifeq ($(TARGET_HW), Arria10)
 HW_DEVICE = Arria10
-HW_FULL_PATH = /glob/development-tools/versions/oneapi/2024.0.2.1/oneapi/intel_s10gx_pac:pac_a10
+HW_FULL_PATH = /opt/intel/oneapi/intel_s10gx_pac:pac_a10
 endif
 
 #===============================================================================
