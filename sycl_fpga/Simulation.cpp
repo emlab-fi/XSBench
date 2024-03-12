@@ -14,6 +14,84 @@
 
 // use SYCL namespace to reduce symbol names
 using namespace sycl;
+
+//simulation kernel functor, templated, so we can spawn multiple identical pipelines
+template<int COUNT, int INDEX>
+struct simulation_kernel {
+
+	// data required for running the kernel
+	Inputs in;
+	int* num_nucs_d;
+	double* concs_d;
+	double* unionized_energy_array_d;
+	int* index_grid_d;
+	NuclideGridPoint* nuclide_grid_d;
+	int* mats_d;
+	int max_num_nucs;
+	int* verification_d;
+
+	//constructor
+	simulation_kernel(
+		Inputs i, int* num_nucs, double* concs, double* unionized_energy_array, int* index_grid,
+		NuclideGridPoint* nuclide_grid, int* mats, int max_nm, int* verification
+	) : in(i), num_nucs_d(num_nucs), concs_d(concs), unionized_energy_array_d(unionized_energy_array),
+		index_grid_d(index_grid), nuclide_grid_d(nuclide_grid), mats_d(mats), max_num_nucs(max_nm),
+		verification_d(verification) {}
+
+	void operator()(id<1> idx) {
+
+		uint64_t seed = STARTING_SEED;
+
+		size_t i = idx[0] + INDEX * (in.lookups / COUNT);
+
+		// Forward seed to lookup index (we need 2 samples per lookup)
+		seed = fast_forward_LCG(seed, 2*i);
+
+		// Randomly pick an energy and material for the particle
+		double p_energy = LCG_random_double(&seed);
+		int mat         = pick_mat(&seed);
+
+		double macro_xs_vector[5] = {0};
+
+		// Perform macroscopic Cross Section Lookup
+		calculate_macro_xs(
+				p_energy,        // Sampled neutron energy (in lethargy)
+				mat,             // Sampled material type index neutron is in
+				in.n_isotopes,   // Total number of isotopes in simulation
+				in.n_gridpoints, // Number of gridpoints per isotope in simulation
+				num_nucs_d,     // 1-D array with number of nuclides per material
+				concs_d,        // Flattened 2-D array with concentration of each nuclide in each material
+				unionized_energy_array_d, // 1-D Unionized energy array
+				index_grid_d,   // Flattened 2-D grid holding indices into nuclide grid for each unionized energy level
+				nuclide_grid_d, // Flattened 2-D grid holding energy levels and XS_data for all nuclides in simulation
+				mats_d,         // Flattened 2-D array with nuclide indices defining composition of each type of material
+				macro_xs_vector, // 1-D array with result of the macroscopic cross section (5 different reaction channels)
+				in.grid_type,    // Lookup type (nuclide, hash, or unionized)
+				in.hash_bins,    // Number of hash bins used (if using hash lookup type)
+				max_num_nucs  // Maximum number of nuclides present in any material
+				);
+
+		// For verification, and to prevent the compiler from optimizing
+		// all work out, we interrogate the returned macro_xs_vector array
+		// to find its maximum value index, then increment the verification
+		// value by that index. In this implementation, we store to a global
+		// array that will get tranferred back and reduced on the host.
+		double max = -1.0;
+		int max_idx = 0;
+		for(int j = 0; j < 5; j++ )
+		{
+			if( macro_xs_vector[j] > max )
+			{
+				max = macro_xs_vector[j];
+				max_idx = j;
+			}
+		}
+		verification_d[i] = max_idx+1;
+	}
+
+};
+
+
 unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int mype, double * kernel_init_time)
 {
 
@@ -100,65 +178,18 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 
 		sycl_q.wait();
 
-		// simulation kernel - submit in loop, so that we can have parallel pipelines
+		// simulation kernels - we submit several parallel kernels
+		sycl_q.submit([&](handler &cgh) {
+			cgh.parallel_for(range<1>(in.lookups / 2),
+				simulation_kernel<2, 0>(in, num_nucs_d, concs_d, unionized_energy_array_d,
+					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
+		});
 
-		for (int p_i = 0; p_i < PIPELINE_COUNT; ++p_i) {
-			sycl_q.submit([&](handler &cgh) {
-				cgh.parallel_for(range<1>(in.lookups / PIPELINE_COUNT), [=](id<1> idx)
-					{
-					uint64_t seed = STARTING_SEED;
-
-					size_t i = idx[0] + p_i * (in.lookups / PIPELINE_COUNT);
-
-					// Forward seed to lookup index (we need 2 samples per lookup)
-					seed = fast_forward_LCG(seed, 2*i);
-
-					// Randomly pick an energy and material for the particle
-					double p_energy = LCG_random_double(&seed);
-					int mat         = pick_mat(&seed); 
-
-					// debugging
-					//printf("E = %lf mat = %d\n", p_energy, mat);
-
-					double macro_xs_vector[5] = {0};
-
-					// Perform macroscopic Cross Section Lookup
-					calculate_macro_xs(
-							p_energy,        // Sampled neutron energy (in lethargy)
-							mat,             // Sampled material type index neutron is in
-							in.n_isotopes,   // Total number of isotopes in simulation
-							in.n_gridpoints, // Number of gridpoints per isotope in simulation
-							num_nucs_d,     // 1-D array with number of nuclides per material
-							concs_d,        // Flattened 2-D array with concentration of each nuclide in each material
-							unionized_energy_array_d, // 1-D Unionized energy array
-							index_grid_d,   // Flattened 2-D grid holding indices into nuclide grid for each unionized energy level
-							nuclide_grid_d, // Flattened 2-D grid holding energy levels and XS_data for all nuclides in simulation
-							mats_d,         // Flattened 2-D array with nuclide indices defining composition of each type of material
-							macro_xs_vector, // 1-D array with result of the macroscopic cross section (5 different reaction channels)
-							in.grid_type,    // Lookup type (nuclide, hash, or unionized)
-							in.hash_bins,    // Number of hash bins used (if using hash lookup type)
-							SD.max_num_nucs  // Maximum number of nuclides present in any material
-							);
-
-					// For verification, and to prevent the compiler from optimizing
-					// all work out, we interrogate the returned macro_xs_vector array
-					// to find its maximum value index, then increment the verification
-					// value by that index. In this implementation, we store to a global
-					// array that will get tranferred back and reduced on the host.
-					double max = -1.0;
-					int max_idx = 0;
-					for(int j = 0; j < 5; j++ )
-					{
-						if( macro_xs_vector[j] > max )
-						{
-							max = macro_xs_vector[j];
-							max_idx = j;
-						}
-					}
-					verification_d[i] = max_idx+1;
-				});
-			});
-		}
+		sycl_q.submit([&](handler &cgh) {
+			cgh.parallel_for(range<1>(in.lookups / 2),
+				simulation_kernel<2, 1>(in, num_nucs_d, concs_d, unionized_energy_array_d,
+					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
+		});
 
 
 
