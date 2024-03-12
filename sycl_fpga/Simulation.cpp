@@ -38,7 +38,7 @@ struct simulation_kernel {
 		index_grid_d(index_grid), nuclide_grid_d(nuclide_grid), mats_d(mats), max_num_nucs(max_nm),
 		verification_d(verification) {}
 
-	void operator()(id<1> idx) {
+	void operator()(id<1> idx) const {
 
 		uint64_t seed = STARTING_SEED;
 
@@ -180,14 +180,26 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 
 		// simulation kernels - we submit several parallel kernels
 		sycl_q.submit([&](handler &cgh) {
-			cgh.parallel_for(range<1>(in.lookups / 2),
-				simulation_kernel<2, 0>(in, num_nucs_d, concs_d, unionized_energy_array_d,
+			cgh.parallel_for(range<1>(in.lookups / 4),
+				simulation_kernel<4, 0>(in, num_nucs_d, concs_d, unionized_energy_array_d,
 					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
 		});
 
 		sycl_q.submit([&](handler &cgh) {
-			cgh.parallel_for(range<1>(in.lookups / 2),
-				simulation_kernel<2, 1>(in, num_nucs_d, concs_d, unionized_energy_array_d,
+			cgh.parallel_for(range<1>(in.lookups / 4),
+				simulation_kernel<4, 1>(in, num_nucs_d, concs_d, unionized_energy_array_d,
+					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
+		});
+
+		sycl_q.submit([&](handler &cgh) {
+			cgh.parallel_for(range<1>(in.lookups / 4),
+				simulation_kernel<4, 2>(in, num_nucs_d, concs_d, unionized_energy_array_d,
+					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
+		});
+
+		sycl_q.submit([&](handler &cgh) {
+			cgh.parallel_for(range<1>(in.lookups / 4),
+				simulation_kernel<4, 3>(in, num_nucs_d, concs_d, unionized_energy_array_d,
 					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
 		});
 
