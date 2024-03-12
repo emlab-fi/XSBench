@@ -33,12 +33,12 @@ endif
 
 ifeq ($(TARGET_HW), Stratix10)
 HW_DEVICE = Stratix10
-HW_FULL_PATH = /opt/intel/oneapi/intel_s10sx_pac:pac_s10
+HW_FULL_PATH = intel_s10sx_pac:pac_s10
 endif
 
 ifeq ($(TARGET_HW), Arria10)
 HW_DEVICE = Arria10
-HW_FULL_PATH = /opt/intel/oneapi/intel_s10gx_pac:pac_a10
+HW_FULL_PATH = intel_s10gx_pac:pac_a10
 endif
 
 #===============================================================================
@@ -50,7 +50,7 @@ CC = icpx
 
 # Compile flags
 CFLAGS = -std=c++17 -Wall -O3 -fsycl -fintelfpga
-LDFLAGS = -lm -fsycl -fintelfpga -Xsv
+LDFLAGS = -lm -fsycl -fintelfpga -Xsv -Xsprofile -Xsauto-pipeline -Xsno-hardware-kernel-invocation-queue
 
 # Linker Flags
 
