@@ -82,7 +82,7 @@ $(program): $(obj) XSbench_header.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(program) $(obj)
+	rm -rf $(program) $(obj) $(program).prj/
 
 edit:
 	vim -p $(source) XSbench_header.h

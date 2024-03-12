@@ -16,7 +16,7 @@
 using namespace sycl;
 unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int mype, double * kernel_init_time)
 {
-	
+
 	////////////////////////////////////////////////////////////////////////////////
 	// SUMMARY: Simulation Data Structure Manifest for "SD" Object
 	// Here we list all heap arrays (and lengths) in SD that would need to be
@@ -35,11 +35,11 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 	// Note: "Lengths" are given as the number of objects in the array, not the
 	//       number of bytes.
 	////////////////////////////////////////////////////////////////////////////////
-	
+
 	// Let's create an extra verification array to reduce manually later on
 	if( mype == 0 ) printf("Allocating an additional %.1lf MB of memory for verification arrays...\n", in.lookups * sizeof(int) /1024.0/1024.0);
 	int * verification_host = (int *) malloc(in.lookups * sizeof(int));
-	
+
 	// Timers
 	double start = get_time();
 	double stop;
@@ -52,7 +52,7 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 		queue sycl_q{ext::intel::fpga_selector_v};
 		if(mype == 0 ) printf("Running on: %s\n", sycl_q.get_device().get_info<sycl::info::device::name>().c_str());
 		if(mype == 0 ) printf("Initializing device buffers and JIT compiling kernel...\n");
-	
+
 		////////////////////////////////////////////////////////////////////////////////
 		// Allocate memory on FPGA device
 		////////////////////////////////////////////////////////////////////////////////
@@ -80,11 +80,11 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 		size_t index_grid_allocation_sz = ceil((SD.length_index_grid * sizeof(int)));
 		assert( index_grid_allocation_sz <= sycl_q.get_device().get_info<sycl::info::device::max_mem_alloc_size>() );
 		int* index_grid_d = malloc_device<int>(SD.length_index_grid, sycl_q);
-		
+
 		////////////////////////////////////////////////////////////////////////////////
 		// Define Device Kernels
 		////////////////////////////////////////////////////////////////////////////////
-		
+
 		// move data to fpga
 		sycl_q.submit([&](handler &cgh)
 				{
@@ -97,68 +97,70 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 				cgh.memcpy(index_grid_d, SD.index_grid, index_grid_allocation_sz);
 
 				});
-	
+
 		sycl_q.wait();
 
-		//create pipelined properties for kernel
-		using namespace sycl::ext::intel::experimental;
-		using namespace sycl::ext::oneapi::experimental;
-		properties kernel_properties{streaming_interface_accept_downstream_stall, pipelined<>};
+		// simulation kernel - submit in loop, so that we can have parallel pipelines
 
-
-		// simulation kernel
-		sycl_q.parallel_for<kernel>(range<1>(in.lookups), [=](id<1> idx)
-			{
-				uint64_t seed = STARTING_SEED;
-
-				// Forward seed to lookup index (we need 2 samples per lookup)
-				seed = fast_forward_LCG(seed, 2*i);
-
-				// Randomly pick an energy and material for the particle
-				double p_energy = LCG_random_double(&seed);
-				int mat         = pick_mat(&seed); 
-
-				// debugging
-				//printf("E = %lf mat = %d\n", p_energy, mat);
-
-				double macro_xs_vector[5] = {0};
-
-				// Perform macroscopic Cross Section Lookup
-				calculate_macro_xs(
-						p_energy,        // Sampled neutron energy (in lethargy)
-						mat,             // Sampled material type index neutron is in
-						in.n_isotopes,   // Total number of isotopes in simulation
-						in.n_gridpoints, // Number of gridpoints per isotope in simulation
-						num_nucs_d,     // 1-D array with number of nuclides per material
-						concs_d,        // Flattened 2-D array with concentration of each nuclide in each material
-						unionized_energy_array_d, // 1-D Unionized energy array
-						index_grid_d,   // Flattened 2-D grid holding indices into nuclide grid for each unionized energy level
-						nuclide_grid_d, // Flattened 2-D grid holding energy levels and XS_data for all nuclides in simulation
-						mats_d,         // Flattened 2-D array with nuclide indices defining composition of each type of material
-						macro_xs_vector, // 1-D array with result of the macroscopic cross section (5 different reaction channels)
-						in.grid_type,    // Lookup type (nuclide, hash, or unionized)
-						in.hash_bins,    // Number of hash bins used (if using hash lookup type)
-						SD.max_num_nucs  // Maximum number of nuclides present in any material
-						);
-
-				// For verification, and to prevent the compiler from optimizing
-				// all work out, we interrogate the returned macro_xs_vector array
-				// to find its maximum value index, then increment the verification
-				// value by that index. In this implementation, we store to a global
-				// array that will get tranferred back and reduced on the host.
-				double max = -1.0;
-				int max_idx = 0;
-				for(int j = 0; j < 5; j++ )
-				{
-					if( macro_xs_vector[j] > max )
+		for (int p_i = 0; p_i < PIPELINE_COUNT; ++p_i) {
+			sycl_q.submit([&](handler &cgh) {
+				cgh.parallel_for(range<1>(in.lookups / PIPELINE_COUNT), [=](id<1> idx)
 					{
-						max = macro_xs_vector[j];
-						max_idx = j;
+					uint64_t seed = STARTING_SEED;
+
+					size_t i = idx[0] + p_i * (in.lookups / PIPELINE_COUNT);
+
+					// Forward seed to lookup index (we need 2 samples per lookup)
+					seed = fast_forward_LCG(seed, 2*i);
+
+					// Randomly pick an energy and material for the particle
+					double p_energy = LCG_random_double(&seed);
+					int mat         = pick_mat(&seed); 
+
+					// debugging
+					//printf("E = %lf mat = %d\n", p_energy, mat);
+
+					double macro_xs_vector[5] = {0};
+
+					// Perform macroscopic Cross Section Lookup
+					calculate_macro_xs(
+							p_energy,        // Sampled neutron energy (in lethargy)
+							mat,             // Sampled material type index neutron is in
+							in.n_isotopes,   // Total number of isotopes in simulation
+							in.n_gridpoints, // Number of gridpoints per isotope in simulation
+							num_nucs_d,     // 1-D array with number of nuclides per material
+							concs_d,        // Flattened 2-D array with concentration of each nuclide in each material
+							unionized_energy_array_d, // 1-D Unionized energy array
+							index_grid_d,   // Flattened 2-D grid holding indices into nuclide grid for each unionized energy level
+							nuclide_grid_d, // Flattened 2-D grid holding energy levels and XS_data for all nuclides in simulation
+							mats_d,         // Flattened 2-D array with nuclide indices defining composition of each type of material
+							macro_xs_vector, // 1-D array with result of the macroscopic cross section (5 different reaction channels)
+							in.grid_type,    // Lookup type (nuclide, hash, or unionized)
+							in.hash_bins,    // Number of hash bins used (if using hash lookup type)
+							SD.max_num_nucs  // Maximum number of nuclides present in any material
+							);
+
+					// For verification, and to prevent the compiler from optimizing
+					// all work out, we interrogate the returned macro_xs_vector array
+					// to find its maximum value index, then increment the verification
+					// value by that index. In this implementation, we store to a global
+					// array that will get tranferred back and reduced on the host.
+					double max = -1.0;
+					int max_idx = 0;
+					for(int j = 0; j < 5; j++ )
+					{
+						if( macro_xs_vector[j] > max )
+						{
+							max = macro_xs_vector[j];
+							max_idx = j;
+						}
 					}
-				}
-				verification_d[i] = max_idx+1;
+					verification_d[i] = max_idx+1;
+				});
 			});
 		}
+
+
 
 		sycl_q.wait();
 
@@ -275,6 +277,7 @@ void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
 	double conc; // the concentration of the nuclide in the material
 
 	// cleans out macro_xs_vector
+	#pragma unroll
 	for( int k = 0; k < 5; k++ )
 		macro_xs_vector[k] = 0;
 
@@ -305,6 +308,8 @@ void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
 		calculate_micro_xs( p_energy, p_nuc, n_isotopes,
 				n_gridpoints, egrid, index_data,
 				nuclide_grids, idx, xs_vector, grid_type, hash_bins );
+
+		#pragma unroll
 		for( int k = 0; k < 5; k++ )
 			macro_xs_vector[k] += xs_vector[k] * conc;
 	}
