@@ -164,17 +164,18 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 		////////////////////////////////////////////////////////////////////////////////
 
 		// move data to fpga
-		sycl_q.submit([&](handler &cgh)
-				{
-
-				cgh.memcpy(num_nucs_d, SD.num_nucs, SD.length_num_nucs * sizeof(int));
-				cgh.memcpy(concs_d, SD.concs, SD.length_concs * sizeof(double));
-				cgh.memcpy(mats_d, SD.mats, SD.length_mats * sizeof(int));
-				cgh.memcpy(nuclide_grid_d, SD.nuclide_grid, SD.length_nuclide_grid * sizeof(NuclideGridPoint));
-				cgh.memcpy(unionized_energy_array_d, SD.unionized_energy_array, SD.length_unionized_energy_array * sizeof(double));
-				cgh.memcpy(index_grid_d, SD.index_grid, index_grid_allocation_sz);
-
-				});
+		sycl_q.submit([&](handler &cgh) {
+				cgh.memcpy(num_nucs_d, SD.num_nucs, SD.length_num_nucs * sizeof(int)); });
+		sycl_q.submit([&](handler &cgh) {
+				cgh.memcpy(concs_d, SD.concs, SD.length_concs * sizeof(double)); });
+		sycl_q.submit([&](handler &cgh) {
+				cgh.memcpy(mats_d, SD.mats, SD.length_mats * sizeof(int)); });
+		sycl_q.submit([&](handler &cgh) {
+				cgh.memcpy(nuclide_grid_d, SD.nuclide_grid, SD.length_nuclide_grid * sizeof(NuclideGridPoint)); });
+		sycl_q.submit([&](handler &cgh) {
+				cgh.memcpy(unionized_energy_array_d, SD.unionized_energy_array, SD.length_unionized_energy_array * sizeof(double)); });
+		sycl_q.submit([&](handler &cgh) {
+				cgh.memcpy(index_grid_d, SD.index_grid, index_grid_allocation_sz); });
 
 		sycl_q.wait();
 
