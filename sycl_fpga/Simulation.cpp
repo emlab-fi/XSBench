@@ -211,7 +211,7 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 		// copy verification back to host
 		sycl_q.submit([&](handler &cgh)
 				{
-				cgh.memcpy(verification_d, verification_host, in.lookups);
+				cgh.memcpy(verification_host, verification_d, in.lookups);
 				});
 
 		sycl_q.wait();
