@@ -126,7 +126,7 @@ double get_time(void);
 // Materials.c
 int * load_num_nucs(long n_isotopes);
 int * load_mats( int * num_nucs, long n_isotopes, int * max_num_nucs );
-double * load_concs( int * num_nucs, int max_num_nucs );
+float * load_concs( int * num_nucs, int max_num_nucs );
 
 // binary search for energy on nuclide energy grid
 // This funciton is defined in the header, as it is also used by the

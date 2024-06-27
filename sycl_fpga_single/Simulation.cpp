@@ -392,7 +392,7 @@ int pick_mat( unsigned long * seed )
         float running = 0;
         #pragma unroll 12
         for ( int j = i; j > 0; j-- ) {
-            running += dist[j]
+            running += dist[j];
         }
 		if (roll < running) {
 			return i;
