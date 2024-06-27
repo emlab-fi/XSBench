@@ -13,6 +13,19 @@ int double_compare(const void * a, const void * b)
 		return 0;
 }
 
+int float_compare(const void * a, const void * b)
+{
+	float A = *((float *) a);
+	float B = *((float *) b);
+
+	if( A > B )
+		return 1;
+	else if( A < B )
+		return -1;
+	else
+		return 0;
+}
+
 int NGP_compare(const void * a, const void * b)
 {
 	NuclideGridPoint A = *((NuclideGridPoint *) a);
@@ -31,7 +44,7 @@ size_t estimate_mem_usage( Inputs in )
 {
 	size_t single_nuclide_grid = in.n_gridpoints * sizeof( NuclideGridPoint );
 	size_t all_nuclide_grids   = in.n_isotopes * single_nuclide_grid;
-	size_t size_UEG            = in.n_isotopes*in.n_gridpoints*sizeof(double) + in.n_isotopes*in.n_gridpoints*in.n_isotopes*sizeof(int);
+	size_t size_UEG            = in.n_isotopes*in.n_gridpoints*sizeof(float) + in.n_isotopes*in.n_gridpoints*in.n_isotopes*sizeof(int);
 	size_t size_hash_grid      = in.hash_bins * in.n_isotopes * sizeof(int);
 	size_t memtotal;
 

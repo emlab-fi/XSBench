@@ -22,8 +22,8 @@ struct simulation_kernel {
 	// data required for running the kernel
 	Inputs in;
 	int* num_nucs_d;
-	double* concs_d;
-	double* unionized_energy_array_d;
+	float* concs_d;
+	float* unionized_energy_array_d;
 	int* index_grid_d;
 	NuclideGridPoint* nuclide_grid_d;
 	int* mats_d;
@@ -32,7 +32,7 @@ struct simulation_kernel {
 
 	//constructor
 	simulation_kernel(
-		Inputs i, int* num_nucs, double* concs, double* unionized_energy_array, int* index_grid,
+		Inputs i, int* num_nucs, float* concs, float* unionized_energy_array, int* index_grid,
 		NuclideGridPoint* nuclide_grid, int* mats, int max_nm, int* verification
 	) : in(i), num_nucs_d(num_nucs), concs_d(concs), unionized_energy_array_d(unionized_energy_array),
 		index_grid_d(index_grid), nuclide_grid_d(nuclide_grid), mats_d(mats), max_num_nucs(max_nm),
@@ -48,10 +48,10 @@ struct simulation_kernel {
 		seed = fast_forward_LCG(seed, 2*i);
 
 		// Randomly pick an energy and material for the particle
-		double p_energy = LCG_random_double(&seed);
+		float p_energy = LCG_random_float(&seed);
 		int mat         = pick_mat(&seed);
 
-		double macro_xs_vector[5] = {0};
+		float macro_xs_vector[5] = {0};
 
 		// Perform macroscopic Cross Section Lookup
 		calculate_macro_xs(
@@ -76,7 +76,7 @@ struct simulation_kernel {
 		// to find its maximum value index, then increment the verification
 		// value by that index. In this implementation, we store to a global
 		// array that will get tranferred back and reduced on the host.
-		double max = -1.0;
+		float max = -1.0;
 		int max_idx = 0;
 		for(int j = 0; j < 5; j++ )
 		{
@@ -136,7 +136,7 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 		////////////////////////////////////////////////////////////////////////////////
 
 		int* num_nucs_d = malloc_device<int>(SD.length_num_nucs, sycl_q);
-		double* concs_d = malloc_device<double>(SD.length_concs, sycl_q);
+		float* concs_d = malloc_device<float>(SD.length_concs, sycl_q);
 		int* mats_d = malloc_device<int>(SD.length_mats, sycl_q);
 		NuclideGridPoint* nuclide_grid_d = malloc_device<NuclideGridPoint>(SD.length_nuclide_grid, sycl_q);
 		int* verification_d = malloc_device<int>(in.lookups, sycl_q);
@@ -145,9 +145,9 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 		if( SD.length_unionized_energy_array == 0 )
 		{
 			SD.length_unionized_energy_array = 1;
-			SD.unionized_energy_array = (double *) malloc(sizeof(double));
+			SD.unionized_energy_array = (float *) malloc(sizeof(float));
 		}
-		double* unionized_energy_array_d = malloc_device<double>(SD.length_unionized_energy_array, sycl_q);
+		float* unionized_energy_array_d = malloc_device<float>(SD.length_unionized_energy_array, sycl_q);
 
 		if( SD.length_index_grid == 0 )
 		{
@@ -167,13 +167,13 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 		sycl_q.submit([&](handler &cgh) {
 				cgh.memcpy(num_nucs_d, SD.num_nucs, SD.length_num_nucs * sizeof(int)); });
 		sycl_q.submit([&](handler &cgh) {
-				cgh.memcpy(concs_d, SD.concs, SD.length_concs * sizeof(double)); });
+				cgh.memcpy(concs_d, SD.concs, SD.length_concs * sizeof(float)); });
 		sycl_q.submit([&](handler &cgh) {
 				cgh.memcpy(mats_d, SD.mats, SD.length_mats * sizeof(int)); });
 		sycl_q.submit([&](handler &cgh) {
 				cgh.memcpy(nuclide_grid_d, SD.nuclide_grid, SD.length_nuclide_grid * sizeof(NuclideGridPoint)); });
 		sycl_q.submit([&](handler &cgh) {
-				cgh.memcpy(unionized_energy_array_d, SD.unionized_energy_array, SD.length_unionized_energy_array * sizeof(double)); });
+				cgh.memcpy(unionized_energy_array_d, SD.unionized_energy_array, SD.length_unionized_energy_array * sizeof(float)); });
 		sycl_q.submit([&](handler &cgh) {
 				cgh.memcpy(index_grid_d, SD.index_grid, index_grid_allocation_sz); });
 
@@ -181,26 +181,8 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 
 		// simulation kernels - we submit several parallel kernels
 		sycl_q.submit([&](handler &cgh) {
-			cgh.parallel_for(range<1>(in.lookups / 4),
-				simulation_kernel<4, 0>(in, num_nucs_d, concs_d, unionized_energy_array_d,
-					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
-		});
-
-		sycl_q.submit([&](handler &cgh) {
-			cgh.parallel_for(range<1>(in.lookups / 4),
-				simulation_kernel<4, 1>(in, num_nucs_d, concs_d, unionized_energy_array_d,
-					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
-		});
-
-		sycl_q.submit([&](handler &cgh) {
-			cgh.parallel_for(range<1>(in.lookups / 4),
-				simulation_kernel<4, 2>(in, num_nucs_d, concs_d, unionized_energy_array_d,
-					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
-		});
-
-		sycl_q.submit([&](handler &cgh) {
-			cgh.parallel_for(range<1>(in.lookups / 4),
-				simulation_kernel<4, 3>(in, num_nucs_d, concs_d, unionized_energy_array_d,
+			cgh.parallel_for(range<1>(in.lookups),
+				simulation_kernel<1, 0>(in, num_nucs_d, concs_d, unionized_energy_array_d,
 					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
 		});
 
@@ -233,7 +215,7 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 // binary search for energy on unionized energy grid
 // returns lower index
 template <class T>
-long grid_search( long n, double quarry, T A)
+long grid_search( long n, float quarry, T A)
 {
 	long lowerLimit = 0;
 	long upperLimit = n-1;
@@ -257,13 +239,13 @@ long grid_search( long n, double quarry, T A)
 
 // Calculates the microscopic cross section for a given nuclide & energy
 template <class Double_Type, class Int_Type, class NGP_Type>
-void calculate_micro_xs(   double p_energy, int nuc, long n_isotopes,
+void calculate_micro_xs(   float p_energy, int nuc, long n_isotopes,
 		long n_gridpoints,
 		Double_Type  egrid, Int_Type  index_data,
 		NGP_Type  nuclide_grids,
-		long idx, double *  xs_vector, int grid_type, int hash_bins ){
+		long idx, float *  xs_vector, int grid_type, int hash_bins ){
 	// Variables
-	double f;
+	float f;
 	NuclideGridPoint low, high;
 	long low_idx, high_idx;
 
@@ -309,16 +291,16 @@ void calculate_micro_xs(   double p_energy, int nuc, long n_isotopes,
 
 // Calculates macroscopic cross section based on a given material & energy
 template <class Double_Type, class Int_Type, class NGP_Type, class E_GRID_TYPE, class INDEX_TYPE>
-void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
+void calculate_macro_xs( float p_energy, int mat, long n_isotopes,
 		long n_gridpoints, Int_Type  num_nucs,
 		Double_Type  concs,
 		E_GRID_TYPE  egrid, INDEX_TYPE  index_data,
 		NGP_Type  nuclide_grids,
 		Int_Type  mats,
-		double * macro_xs_vector, int grid_type, int hash_bins, int max_num_nucs ){
+		float * macro_xs_vector, int grid_type, int hash_bins, int max_num_nucs ){
 	int p_nuc; // the nuclide we are looking up
 	long idx = -1;
-	double conc; // the concentration of the nuclide in the material
+	float conc; // the concentration of the nuclide in the material
 
 	// cleans out macro_xs_vector
 	#pragma unroll
@@ -346,7 +328,7 @@ void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
 	//  avoid simulataneous writing to the same data structure)
 	for( int j = 0; j < num_nucs[mat]; j++ )
 	{
-		double xs_vector[5];
+		float xs_vector[5];
 		p_nuc = mats[mat*max_num_nucs + j];
 		conc = concs[mat*max_num_nucs + j];
 		calculate_micro_xs( p_energy, p_nuc, n_isotopes,
@@ -370,7 +352,7 @@ int pick_mat( unsigned long * seed )
 	// Also could be argued that doing fractions by weight would be
 	// a better approximation, but volume does a good enough job for now.
 
-	double dist[12];
+	float dist[12];
 	dist[0]  = 0.140;	// fuel
 	dist[1]  = 0.052;	// cladding
 	dist[2]  = 0.275;	// cold, borated water
@@ -386,7 +368,7 @@ int pick_mat( unsigned long * seed )
 
 	//precalculated cumulative data to unroll a loop and remove unecessary calculations
 	// THIS DOES NOT BEHAVE AS NORMAL SIMULATOR! WE CANNOT PRECALCULATE THE CUMULATIVE
-	double dist_cumulative[12];
+	float dist_cumulative[12];
 	dist_cumulative[0] = 0.140;
 	dist_cumulative[1] = 0.192;
 	dist_cumulative[2] = 0.467;
@@ -400,14 +382,14 @@ int pick_mat( unsigned long * seed )
 	dist_cumulative[10] = 0.988;
 	dist_cumulative[11] = 1.000;
 
-	double roll = LCG_random_double(seed);
+	float roll = LCG_random_float(seed);
 
 	// makes a pick based on the distro
 
 	#pragma unroll
 	for( int i = 0; i < 12; i++ )
 	{
-        double running = 0;
+        float running = 0;
         #pragma unroll 12
         for ( int j = i; j > 0; j-- ) {
             running += dist[j]
@@ -428,6 +410,16 @@ double LCG_random_double(uint64_t * seed)
 	const uint64_t c = 1ULL;
 	*seed = (a * (*seed) + c) % m;
 	return (double) (*seed) / (double) m;
+}
+
+float LCG_random_float(uint64_t * seed)
+{
+	// LCG parameters
+	const uint64_t m = 9223372036854775808ULL; // 2^63
+	const uint64_t a = 2806196910506780709ULL;
+	const uint64_t c = 1ULL;
+	*seed = (a * (*seed) + c) % m;
+	return (float) (*seed) / (float) m;
 }
 
 uint64_t fast_forward_LCG(uint64_t seed, uint64_t n)
