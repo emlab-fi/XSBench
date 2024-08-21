@@ -106,7 +106,7 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 	// double * unionized_energy_array;    // Length = length_unionized_energy_array
 	// int * index_grid;                   // Length = length_index_grid
 	// NuclideGridPoint * nuclide_grid;    // Length = length_nuclide_grid
-	//
+	// 
 	// Note: "unionized_energy_array" and "index_grid" can be of zero length
 	//        depending on lookup method.
 	//
@@ -181,29 +181,10 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 
 		// simulation kernels - we submit several parallel kernels
 		sycl_q.submit([&](handler &cgh) {
-			cgh.parallel_for(range<1>(in.lookups / 4),
-				simulation_kernel<4, 0>(in, num_nucs_d, concs_d, unionized_energy_array_d,
+			cgh.parallel_for(range<1>(in.lookups),
+				simulation_kernel<1, 0>(in, num_nucs_d, concs_d, unionized_energy_array_d,
 					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
-		});
-
-		sycl_q.submit([&](handler &cgh) {
-			cgh.parallel_for(range<1>(in.lookups / 4),
-				simulation_kernel<4, 1>(in, num_nucs_d, concs_d, unionized_energy_array_d,
-					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
-		});
-
-		sycl_q.submit([&](handler &cgh) {
-			cgh.parallel_for(range<1>(in.lookups / 4),
-				simulation_kernel<4, 2>(in, num_nucs_d, concs_d, unionized_energy_array_d,
-					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
-		});
-
-		sycl_q.submit([&](handler &cgh) {
-			cgh.parallel_for(range<1>(in.lookups / 4),
-				simulation_kernel<4, 3>(in, num_nucs_d, concs_d, unionized_energy_array_d,
-					index_grid_d, nuclide_grid_d, mats_d, SD.max_num_nucs, verification_d));
-		});
-
+			});
 
 
 		sycl_q.wait();
@@ -229,30 +210,72 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 	return verification_scalar;
 }
 
+template <class T>
+long bin_search(long start, long stop, double q, T A) {
+	long lower = start;
+	long upper = stop;
+	long examination;
+	long length = upper - lower;
+
+	while (length > 1) {
+		examination = lower + (length / 2);
+		if (A[examination] > q) {
+			upper = examination;
+		} else {
+			lower = examination;
+		}
+		length = upper - lower;
+	}
+	return lower;
+}
 
 // binary search for energy on unionized energy grid
 // returns lower index
 template <class T>
 long grid_search( long n, double quarry, T A)
 {
-	long lowerLimit = 0;
-	long upperLimit = n-1;
-	long examinationPoint;
-	long length = upperLimit - lowerLimit;
+	bin_search(0, n - 1, quarry, A);
+}
 
-	while( length > 1 )
-	{
-		examinationPoint = lowerLimit + ( length / 2 );
+template <class T>
+long grid_split_search(long n, double querry, T A) {
+	long lower_left = 0;
+	long upper_left = n/2;
+	long examination_left;
+	long length_left = upper_left - lower_left;
 
-		if( A[examinationPoint] > quarry )
-			upperLimit = examinationPoint;
-		else
-			lowerLimit = examinationPoint;
+	long lower_right = n/2 - 1;
+	long upper_right = n -1;
+	long examination_right;
+	long length_right = upper_right - lower_right;
 
-		length = upperLimit - lowerLimit;
+	while (length_left < 1) {
+		examination_left = lower_left + (length_left / 2);
+		if (A[examination_left] > querry) {
+			upper_left = examination_left;
+		} else {
+			lower_left = examination_left;
+		}
+		length_left = upper_left - lower_left;
+		
 	}
 
-	return lowerLimit;
+	while (length_right < 1) {
+		examination_right = lower_right + (length_right / 2);
+		if (A[examination_right] > querry) {
+			upper_right = examination_right;
+		} else {
+			lower_right = examination_right;
+		}
+		length_right = upper_right - lower_right;
+		
+	}
+
+	if (lower_left == n/2 - 1) {
+			return upper_left;
+		}
+	return lower_left;
+	
 }
 
 // Calculates the microscopic cross section for a given nuclide & energy
@@ -307,7 +330,7 @@ void calculate_micro_xs(   double p_energy, int nuc, long n_isotopes,
 	xs_vector[4] = high.nu_fission_xs - f * (high.nu_fission_xs - low.nu_fission_xs);
 }
 
-// Calculates macroscopic cross section based on a given material & energy
+// Calculates macroscopic cross section based on a given material & energy 
 template <class Double_Type, class Int_Type, class NGP_Type, class E_GRID_TYPE, class INDEX_TYPE>
 void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
 		long n_gridpoints, Int_Type  num_nucs,
@@ -317,7 +340,7 @@ void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
 		Int_Type  mats,
 		double * macro_xs_vector, int grid_type, int hash_bins, int max_num_nucs ){
 	int p_nuc; // the nuclide we are looking up
-	long idx = -1;
+	long idx = -1;	
 	double conc; // the concentration of the nuclide in the material
 
 	// cleans out macro_xs_vector
@@ -331,7 +354,7 @@ void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
 	// done inside of the "calculate_micro_xs" function for each different
 	// nuclide in the material.
 	if( grid_type == UNIONIZED )
-		idx = grid_search( n_isotopes * n_gridpoints, p_energy, egrid);
+		idx = grid_split_search( n_isotopes * n_gridpoints, p_energy, egrid);	
 
 
 	// Once we find the pointer array on the UEG, we can pull the data
@@ -363,11 +386,11 @@ void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
 int pick_mat( unsigned long * seed )
 {
 	// I have a nice spreadsheet supporting these numbers. They are
-	// the fractions (by volume) of material in the core. Not a
+	// the fractions (by volume) of material in the core. Not a 
 	// *perfect* approximation of where XS lookups are going to occur,
 	// but this will do a good job of biasing the system nonetheless.
 
-	// Also could be argued that doing fractions by weight would be
+	// Also could be argued that doing fractions by weight would be 
 	// a better approximation, but volume does a good enough job for now.
 
 	double dist[12];
@@ -403,18 +426,15 @@ int pick_mat( unsigned long * seed )
 	double roll = LCG_random_double(seed);
 
 	// makes a pick based on the distro
-
 	#pragma unroll
 	for( int i = 0; i < 12; i++ )
 	{
-        double running = 0;
-        #pragma unroll 12
-        for ( int j = i; j > 0; j-- ) {
-            running += dist[j]
-        }
-		if (roll < running) {
+		double running = 0;
+		#pragma unroll 12
+		for( int j = i; j > 0; j-- )
+			running += dist[j];
+		if( roll < running )
 			return i;
-		}
 	}
 
 	return 0;
@@ -428,7 +448,7 @@ double LCG_random_double(uint64_t * seed)
 	const uint64_t c = 1ULL;
 	*seed = (a * (*seed) + c) % m;
 	return (double) (*seed) / (double) m;
-}
+}	
 
 uint64_t fast_forward_LCG(uint64_t seed, uint64_t n)
 {
@@ -442,7 +462,7 @@ uint64_t fast_forward_LCG(uint64_t seed, uint64_t n)
 	uint64_t a_new = 1;
 	uint64_t c_new = 0;
 
-	while(n > 0)
+	while(n > 0) 
 	{
 		if(n & 1)
 		{
