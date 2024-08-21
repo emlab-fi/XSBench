@@ -94,7 +94,7 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 		// Generates the double indexing grid
 		int * idx_low = (int *) calloc( in.n_isotopes, sizeof(int));
 		assert(idx_low != NULL );
-		double * energy_high = (float *) malloc( in.n_isotopes * sizeof(float));
+		float * energy_high = (float *) malloc( in.n_isotopes * sizeof(float));
 		assert(energy_high != NULL );
 
 		for( int i = 0; i < in.n_isotopes; i++ )
