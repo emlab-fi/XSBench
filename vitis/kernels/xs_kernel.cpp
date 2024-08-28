@@ -1,51 +1,9 @@
 #include "xs_kernel.hpp"
 #include <stdint.h>
 
+namespace { // annonymous namespace
+
 constexpr uint64_t STARTING_SEED = 1070;
-
-void xs_lookup_krnl(int lookups,                    // how many lookups to do
-                    int* num_nucs,                  // nuclides per material, 1-D array
-                    double* concs,                   // nuclide concentrations per material, flattened 2-D
-                    double* unionized_energy_grid,  // unionized energy grid, 1-D array
-                    int* index_grid,                // index grid for unionized grid, flatenned 2-D
-                    NuclideGridPoint* nuclide_grid, // XS data for nuclides, flatenned 2-D
-                    int* materials,                 // nuclide indices for material definition, flatenned 2-D
-                    int max_nuclides,               // max nuclides in any material
-                    int* verification,              // verification array
-                    long n_isotopes,                // number of isotopes in simulation
-                    long n_gridpoints)              // number of grindpoints per isotope
-{
-    uint64_t seed = STARTING_SEED;
-
-    for (int i = 0; i < lookups; ++i) {
-
-        seed = fast_forward_LCG(seed, 2*i);
-        double energy = LCG_random_double(&seed);
-        int mat = pick_mat(&seed);
-
-        double macro_xs_vector[5] = {0};
-
-        calculate_macro_xs(
-            energy, mat, n_isotopes, n_gridpoints, num_nucs, concs, unionized_energy_grid,
-            index_grid, nuclide_grid, materials, macro_xs_vector, max_nuclides
-        );
-
-        double max = -1.0;
-		int max_idx = 0;
-		for(int j = 0; j < 5; ++j )
-		{
-			if( macro_xs_vector[j] > max )
-			{
-				max = macro_xs_vector[j];
-				max_idx = j;
-			}
-		}
-		verification[i] = max_idx+1;
-    }
-}
-
-// anonymous namespace
-namespace {
 
 long grid_search(long n, double querry, double* grid)
 {
@@ -123,6 +81,45 @@ void calculate_macro_xs(double energy, int mat, long n_isotopes, long n_gridpoin
     }
 }
 
+double LCG_random_double(uint64_t * seed)
+{
+	// LCG parameters
+	const uint64_t m = 9223372036854775808ULL; // 2^63
+	const uint64_t a = 2806196910506780709ULL;
+	const uint64_t c = 1ULL;
+	*seed = (a * (*seed) + c) % m;
+	return (double) (*seed) / (double) m;
+}
+
+uint64_t fast_forward_LCG(uint64_t seed, uint64_t n)
+{
+	// LCG parameters
+	const uint64_t m = 9223372036854775808ULL; // 2^63
+	uint64_t a = 2806196910506780709ULL;
+	uint64_t c = 1ULL;
+
+	n = n % m;
+
+	uint64_t a_new = 1;
+	uint64_t c_new = 0;
+
+	while(n > 0)
+	{
+		if(n & 1)
+		{
+			a_new *= a;
+			c_new = c_new * a + c;
+		}
+		c *= (a + 1);
+		a *= a;
+
+		n >>= 1;
+	}
+
+	return (a_new * seed + c_new) % m;
+
+}
+
 // picks a material based on a probabilistic distribution
 int pick_mat( unsigned long * seed )
 {
@@ -174,44 +171,45 @@ int pick_mat( unsigned long * seed )
 	return 0;
 }
 
-
-double LCG_random_double(uint64_t * seed)
-{
-	// LCG parameters
-	const uint64_t m = 9223372036854775808ULL; // 2^63
-	const uint64_t a = 2806196910506780709ULL;
-	const uint64_t c = 1ULL;
-	*seed = (a * (*seed) + c) % m;
-	return (double) (*seed) / (double) m;
-}
-
-uint64_t fast_forward_LCG(uint64_t seed, uint64_t n)
-{
-	// LCG parameters
-	const uint64_t m = 9223372036854775808ULL; // 2^63
-	uint64_t a = 2806196910506780709ULL;
-	uint64_t c = 1ULL;
-
-	n = n % m;
-
-	uint64_t a_new = 1;
-	uint64_t c_new = 0;
-
-	while(n > 0)
-	{
-		if(n & 1)
-		{
-			a_new *= a;
-			c_new = c_new * a + c;
-		}
-		c *= (a + 1);
-		a *= a;
-
-		n >>= 1;
-	}
-
-	return (a_new * seed + c_new) % m;
-
-}
-
 } // anonymous namespace
+
+void xs_lookup_krnl(int lookups,                    // how many lookups to do
+                    int* num_nucs,                  // nuclides per material, 1-D array
+                    double* concs,                   // nuclide concentrations per material, flattened 2-D
+                    double* unionized_energy_grid,  // unionized energy grid, 1-D array
+                    int* index_grid,                // index grid for unionized grid, flatenned 2-D
+                    NuclideGridPoint* nuclide_grid, // XS data for nuclides, flatenned 2-D
+                    int* materials,                 // nuclide indices for material definition, flatenned 2-D
+                    int max_nuclides,               // max nuclides in any material
+                    int* verification,              // verification array
+                    long n_isotopes,                // number of isotopes in simulation
+                    long n_gridpoints)              // number of grindpoints per isotope
+{
+    uint64_t seed = STARTING_SEED;
+
+    for (int i = 0; i < lookups; ++i) {
+
+        seed = fast_forward_LCG(seed, 2*i);
+        double energy = LCG_random_double(&seed);
+        int mat = pick_mat(&seed);
+
+        double macro_xs_vector[5] = {0};
+
+        calculate_macro_xs(
+            energy, mat, n_isotopes, n_gridpoints, num_nucs, concs, unionized_energy_grid,
+            index_grid, nuclide_grid, materials, macro_xs_vector, max_nuclides
+        );
+
+        double max = -1.0;
+		int max_idx = 0;
+		for(int j = 0; j < 5; ++j )
+		{
+			if( macro_xs_vector[j] > max )
+			{
+				max = macro_xs_vector[j];
+				max_idx = j;
+			}
+		}
+		verification[i] = max_idx+1;
+    }
+}

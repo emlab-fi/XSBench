@@ -1,4 +1,1 @@
-HLS_CONFIG=hls_config.cfg
-WORK_DIR=tmp
-
- v++ --compile --mode hls --config $HLS_CONFIG --work_dir $WORK_DIR
+v++ -t hw --platform xilinx_u55c_gen3x16_xdma_3_202210_1 -c -k xs_lookup_krnl -I'./' -o'xs_krnl.xo' ./xs_kernel.cpp
