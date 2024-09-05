@@ -53,9 +53,9 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 	///Upload kernel to FPGA
 	unsigned int device_index = 0;
 	auto device = xrt::device(device_index);
-	printf("Device name: %s\n", device.get_info<xrt::info::device::name>());
-	printf("Device bdf: %s\n", device.get_info<xrt::info::device::bdf>());
-	auto kernel_uuid = device.load_xclkbin("xs_kernel.xclbin");
+	printf("Device name: %s\n", device.get_info<xrt::info::device::name>().c_str());
+	printf("Device bdf: %s\n", device.get_info<xrt::info::device::bdf>().c_str());
+	auto kernel_uuid = device.load_xclbin("xs_kernel.xclbin");
 
 	printf("Kernel uploaded\n");
 
@@ -92,7 +92,7 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 	run.wait();
 
 	// copy verification back to host
-	verification_b.sync(XCL_BO_SYNC_BO_TO_HOST);
+	verification_b.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
 
 
 	stop = get_time();

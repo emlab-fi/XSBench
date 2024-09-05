@@ -31,7 +31,7 @@ obj = $(source:.cpp=.o)
 CC = g++
 
 # Compile flags
-CFLAGS = -std=c++17 -Wall -O3 -lxrt_coreutil -pthread --I$(XILINX_XRT)/include -L$X(ILINX_XRT)/lib
+CFLAGS = -std=c++17 -Wall  -O3 -lxrt_coreutil -pthread -I$(XILINX_XRT)/include -L$(XILINX_XRT)/lib
 LDFLAGS = -lm -lxrt_coreutil -pthread
 
 #===============================================================================
