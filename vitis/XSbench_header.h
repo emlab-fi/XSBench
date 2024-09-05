@@ -100,10 +100,37 @@ int NGP_compare( const void * a, const void * b );
 int double_compare(const void * a, const void * b);
 size_t estimate_mem_usage( Inputs in );
 double get_time(void);
+double LCG_random_double(uint64_t * seed);
+uint64_t fast_forward_LCG(uint64_t seed, uint64_t n);
 
 // Materials.c
 int * load_num_nucs(long n_isotopes);
 int * load_mats( int * num_nucs, long n_isotopes, int * max_num_nucs );
 double * load_concs( int * num_nucs, int max_num_nucs );
 
+// binary search for energy on nuclide energy grid
+// This funciton is defined in the header, as it is also used by the
+// initialization region of the program.
+template <class T>
+long grid_search_nuclide( long n, double quarry, T A, long low, long high)
+{
+	long lowerLimit = low;
+	long upperLimit = high;
+	long examinationPoint;
+	long length = upperLimit - lowerLimit;
+
+	while( length > 1 )
+	{
+		examinationPoint = lowerLimit + ( length / 2 );
+
+		if( A[examinationPoint].energy > quarry )
+			upperLimit = examinationPoint;
+		else
+			lowerLimit = examinationPoint;
+
+		length = upperLimit - lowerLimit;
+	}
+
+	return lowerLimit;
+}
 #endif
