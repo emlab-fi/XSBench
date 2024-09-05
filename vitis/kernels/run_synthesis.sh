@@ -1,1 +1,2 @@
-v++ -t hw --platform xilinx_u55c_gen3x16_xdma_3_202210_1 -c -k xs_lookup_krnl -I'./' -o'xs_krnl.xo' ./xs_kernel.cpp
+v++ -g -s -t hw --platform xilinx_u55c_gen3x16_xdma_3_202210_1 -c -k xs_lookup_krnl -I'./' -o'xs_krnl.xo' ./xs_kernel.cpp
+v++ -g -s -t hw --platform xilinx_u55c_gen3x16_xdma_3_202210_1 -l xs_krnl.xo -o'xs_kernel.xclbin'
