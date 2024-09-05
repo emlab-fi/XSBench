@@ -30,7 +30,7 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 	
 	// Initialize Nuclide Grid
 	SD.length_nuclide_grid = in.n_isotopes * in.n_gridpoints;
-	SD.nuclide_grid     = (NuclideGridPoint *) malloc( SD.length_nuclide_grid * sizeof(NuclideGridPoint));
+	SD.nuclide_grid     = (NuclideGridPoint *) aligned_alloc(4096, SD.length_nuclide_grid * sizeof(NuclideGridPoint));
 	assert(SD.nuclide_grid != NULL);
 	nbytes += SD.length_nuclide_grid * sizeof(NuclideGridPoint);
 	for( int i = 0; i < SD.length_nuclide_grid; i++ )
@@ -74,7 +74,7 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 
 		// Allocate space to hold the union of all nuclide energy data
 		SD.length_unionized_energy_array = in.n_isotopes * in.n_gridpoints;
-		SD.unionized_energy_array = (double *) malloc( SD.length_unionized_energy_array * sizeof(double));
+		SD.unionized_energy_array = (double *) aligned_alloc(4096, SD.length_unionized_energy_array * sizeof(double));
 		assert(SD.unionized_energy_array != NULL );
 		nbytes += SD.length_unionized_energy_array * sizeof(double);
 
@@ -87,14 +87,14 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 
 		// Allocate space to hold the acceleration grid indices
 		SD.length_index_grid = SD.length_unionized_energy_array * in.n_isotopes;
-		SD.index_grid = (int *) malloc( SD.length_index_grid * sizeof(int));
+		SD.index_grid = (int *) aligned_alloc(4096, SD.length_index_grid * sizeof(int));
 		assert(SD.index_grid != NULL);
 		nbytes += SD.length_index_grid * sizeof(int);
 
 		// Generates the double indexing grid
 		int * idx_low = (int *) calloc( in.n_isotopes, sizeof(int));
 		assert(idx_low != NULL );
-		double * energy_high = (double *) malloc( in.n_isotopes * sizeof(double));
+		double * energy_high = (double *) aligned_alloc(4096, in.n_isotopes * sizeof(double));
 		assert(energy_high != NULL );
 
 		for( int i = 0; i < in.n_isotopes; i++ )
@@ -127,7 +127,7 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 		if(mype == 0) printf("Intializing hash grid...\n");
 		SD.length_unionized_energy_array = 0;
 		SD.length_index_grid  = (long) in.hash_bins * (long) in.n_isotopes;
-		SD.index_grid = (int *) malloc( SD.length_index_grid * sizeof(int)); 
+		SD.index_grid = (int *) aligned_alloc(4096, SD.length_index_grid * sizeof(int)); 
 		assert(SD.index_grid != NULL);
 		nbytes += SD.length_index_grid * sizeof(int);
 

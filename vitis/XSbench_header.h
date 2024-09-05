@@ -10,7 +10,6 @@
 #include<assert.h>
 #include<stdint.h>
 #include <chrono> 
-#include <sycl/sycl.hpp>
 
 // Papi Header
 #ifdef PAPI
@@ -92,25 +91,6 @@ SimulationData binary_read( Inputs in );
 
 // Simulation.c
 unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int mype, double * kernel_init_time);
-int pick_mat(unsigned long * seed);
-double LCG_random_double(uint64_t * seed);
-uint64_t fast_forward_LCG(uint64_t seed, uint64_t n);
-template <class T>
-long grid_search( long n, double quarry, T A);
-template <class Double_Type, class Int_Type, class NGP_Type>
-void calculate_micro_xs(   double p_energy, int nuc, long n_isotopes,
-		long n_gridpoints,
-		Double_Type  egrid, Int_Type  index_data,
-		NGP_Type  nuclide_grids,
-		long idx, double *  xs_vector, int grid_type, int hash_bins );
-template <class Double_Type, class Int_Type, class NGP_Type, class E_GRID_TYPE, class INDEX_TYPE>
-void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
-		long n_gridpoints, Int_Type  num_nucs,
-		Double_Type  concs,
-		E_GRID_TYPE  egrid, INDEX_TYPE  index_data,
-		NGP_Type  nuclide_grids,
-		Int_Type  mats,
-		double * macro_xs_vector, int grid_type, int hash_bins, int max_num_nucs );
 
 // GridInit.c
 SimulationData grid_init_do_not_profile( Inputs in, int mype );
