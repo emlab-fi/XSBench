@@ -219,7 +219,8 @@ void print_CLI_error(void)
 	printf("  -h <hash bins>           Number of hash bins (only relevant when used with \"-G hash\")\n");
 	printf("  -b <binary mode>         Read or write all data structures to file. If reading, this will skip initialization phase. (read, write)\n");
 	printf("  -k <kernel ID>           Specifies which kernel to run. 0 is baseline, 1, 2, etc are optimized variants. (0 is default.)\n");
-	printf("Default is equivalent to: -m history -s large -l 34 -p 500000 -G unionized\n");
+	printf("  -d <memory layout>       Specifies which memory layout to use (standard, optimized)\n");
+	printf("Default is equivalent to: -m history -s large -l 34 -p 500000 -G unionized -d standard\n");
 	printf("See readme for full description of default run values\n");
 	exit(4);
 }
@@ -261,7 +262,10 @@ Inputs read_CLI( int argc, char * argv[] )
 	
 	// defaults to baseline kernel
 	input.kernel_id = 0;
-	
+
+	// defaults to standard memory layout
+	input.mem_layout = MEM_STANDARD;
+
 	// defaults to H-M Large benchmark
 	input.HM = (char *) malloc( 6 * sizeof(char) );
 	input.HM[0] = 'l' ; 
@@ -407,6 +411,24 @@ Inputs read_CLI( int argc, char * argv[] )
 			else
 				print_CLI_error();
 		}
+
+		// memory layout (-d)
+		else if( strcmp(arg, "-d") == 0 )
+		{
+			char * grid_type;
+			if( ++i < argc )
+				grid_type = argv[i];
+			else
+				print_CLI_error();
+
+			if( strcmp(grid_type, "standard") == 0 )
+				input.grid_type = UNIONIZED;
+			else if( strcmp(grid_type, "optimized") == 0 )
+				input.grid_type = NUCLIDE;
+			else
+				print_CLI_error();
+		}
+
 		else
 			print_CLI_error();
 	}

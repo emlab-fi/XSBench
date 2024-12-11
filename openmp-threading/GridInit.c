@@ -150,6 +150,27 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 		}
 	}
 
+	if( in.mem_layout == MEM_OPTIMIZED )
+	{
+		if(mype == 0) printf("Optimizing memory layout...\n");
+
+		if( in.grid_type == NUCLIDE )
+		{
+			//need to reorder every nuclide
+		}
+
+		//
+		if( in.grid_type == UNIONIZED )
+		{
+			//only need to reorder the unionized grid and index grid
+		}
+
+		if (in.grid_type == HASH )
+		{
+			if(mype == 0) printf("Hash grid not supported with this layout, results won't correct!\n");
+		}
+	}
+
 	////////////////////////////////////////////////////////////////////
 	// Initialize Materials and Concentrations
 	////////////////////////////////////////////////////////////////////

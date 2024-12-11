@@ -47,6 +47,10 @@
 #define READ 1
 #define WRITE 2
 
+// Memory layout type
+#define MEM_STANDARD 0
+#define MEM_OPTIMIZED 1
+
 // Starting Seed
 #define STARTING_SEED 1070
 
@@ -72,6 +76,7 @@ typedef struct{
 	int simulation_method;
 	int binary_mode;
 	int kernel_id;
+	int mem_layout;
 } Inputs;
 
 typedef struct{
