@@ -9,7 +9,7 @@ endif
 OPTIMIZE    = yes
 OPENMP      = yes
 DEBUG       = no
-PROFILE     = no
+PROFILE     = yes
 MPI         = no
 AML         = no
 
@@ -39,7 +39,7 @@ CC    = gcc
 endif
 
 # Standard Flags
-CFLAGS := -std=gnu99 -Wall
+CFLAGS := -std=c11 -Wall
 
 # Linker Flags
 LDFLAGS = -lm

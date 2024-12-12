@@ -145,7 +145,7 @@ unsigned long long run_event_based_simulation_optimization_1(Inputs in, Simulati
 
 // GridInit.c
 SimulationData grid_init_do_not_profile( Inputs in, int mype );
-void optimize_unionized(double * e_old, double * e_new, double * i_old, double * i_new, long n, long n_iso, int k);
+void optimize_unionized(double * e_old, double * e_new, int * i_old, int * i_new, long n, long n_iso, long k);
 void optimize_nuclide();
 
 // XSutils.c

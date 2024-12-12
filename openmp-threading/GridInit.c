@@ -166,8 +166,8 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 			// create new arrays for energy grid and index grid
 			// they need to be aligned on cache line for nice performance
 			// cache lines are usually 64 bytes
-			double * new_unionized = aligned_alloc(64, SD.length_unionized_energy_array + 1);
-			int * new_index = aligned_alloc(64, SD.length_index_grid + in.n_isotopes);
+			double * new_unionized = malloc((SD.length_unionized_energy_array + 1) * sizeof(double));
+			int * new_index = malloc((SD.length_index_grid + in.n_isotopes) * sizeof(int));
 
 			assert(new_unionized != NULL);
 			assert(new_index != NULL);
@@ -178,9 +178,10 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 							   SD.length_unionized_energy_array, in.n_isotopes, 1);
 
 			//default values at start should be zero, array is indexed from 1
+
 			new_unionized[0] = 0.0;
 			for (long i = 0; i < in.n_isotopes; ++i) {
-				new_index[i] = 0.0;
+				new_index[i] = 0;
 			}
 
 			// switch them over, free the old array
@@ -283,9 +284,9 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 // https://en.algorithmica.org/hpc/data-structures/binary-search/
 // it should be possible to also do this non-recursively with a linear pass through the input array
 
-void optimize_unionized(double * e_old, double * e_new, double * i_old, double * i_new, long n, long n_iso, int k)
+void optimize_unionized(double * e_old, double * e_new, int * i_old, int * i_new, long n, long n_iso, long k)
 {
-	static int i = 0;
+	static long i = 0;
 	// dirty workaround to make it possible to run it multiple times if needed
 	if (k == 1) {
         i = 0;
