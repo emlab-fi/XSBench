@@ -125,15 +125,18 @@ void calculate_micro_xs(   double p_energy, int nuc, long n_isotopes,
                            long n_gridpoints,
                            double * restrict egrid, int * restrict index_data,
                            NuclideGridPoint * restrict nuclide_grids,
-                           long idx, double * restrict xs_vector, int grid_type, int hash_bins );
+                           long idx, double * restrict xs_vector, int grid_type, int hash_bins,
+						   int mem_layout );
 void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
                          long n_gridpoints, int * restrict num_nucs,
                          double * restrict concs,
                          double * restrict egrid, int * restrict index_data,
                          NuclideGridPoint * restrict nuclide_grids,
                          int * restrict mats,
-                         double * restrict macro_xs_vector, int grid_type, int hash_bins, int max_num_nucs );
+                         double * restrict macro_xs_vector, int grid_type, int hash_bins,
+						 int mem_layout, int max_num_nucs );
 long grid_search( long n, double quarry, double * restrict A);
+long grid_search_optimized(long n, double querry, double * restrict A);
 long grid_search_nuclide( long n, double quarry, NuclideGridPoint * A, long low, long high);
 int pick_mat( uint64_t * seed );
 double LCG_random_double(uint64_t * seed);
@@ -142,6 +145,8 @@ unsigned long long run_event_based_simulation_optimization_1(Inputs in, Simulati
 
 // GridInit.c
 SimulationData grid_init_do_not_profile( Inputs in, int mype );
+void optimize_unionized(double * e_old, double * e_new, double * i_old, double * i_new, long n, long n_iso, int k);
+void optimize_nuclide();
 
 // XSutils.c
 int NGP_compare( const void * a, const void * b );

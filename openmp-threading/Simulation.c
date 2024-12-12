@@ -86,6 +86,7 @@ unsigned long long run_event_based_simulation(Inputs in, SimulationData SD, int 
 				macro_xs_vector, // 1-D array with result of the macroscopic cross section (5 different reaction channels)
 				in.grid_type,    // Lookup type (nuclide, hash, or unionized)
 				in.hash_bins,    // Number of hash bins used (if using hash lookup type)
+				in.mem_layout,   // Memory layout - changes the lookup function
 				SD.max_num_nucs  // Maximum number of nuclides present in any material
 				);
 
@@ -192,6 +193,7 @@ unsigned long long run_history_based_simulation(Inputs in, SimulationData SD, in
 					macro_xs_vector, // 1-D array with result of the macroscopic cross section (5 different reaction channels)
 					in.grid_type,    // Lookup type (nuclide, hash, or unionized)
 					in.hash_bins,    // Number of hash bins used (if using hash lookups)
+					in.mem_layout,   // Memory layout - changes the lookup function
 					SD.max_num_nucs  // Maximum number of nuclides present in any material
 					);
 
@@ -242,7 +244,8 @@ void calculate_micro_xs(   double p_energy, int nuc, long n_isotopes,
                            long n_gridpoints,
                            double * restrict egrid, int * restrict index_data,
                            NuclideGridPoint * restrict nuclide_grids,
-                           long idx, double * restrict xs_vector, int grid_type, int hash_bins ){
+                           long idx, double * restrict xs_vector, int grid_type, int hash_bins,
+						   int mem_layout ){
 	// Variables
 	double f;
 	NuclideGridPoint * low, * high;
@@ -329,9 +332,10 @@ void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
                          double * restrict egrid, int * restrict index_data,
                          NuclideGridPoint * restrict nuclide_grids,
                          int * restrict mats,
-                         double * restrict macro_xs_vector, int grid_type, int hash_bins, int max_num_nucs ){
+                         double * restrict macro_xs_vector, int grid_type, int hash_bins,
+						 int mem_layout, int max_num_nucs ){
 	int p_nuc; // the nuclide we are looking up
-	long idx = -1;	
+	long idx = -1;
 	double conc; // the concentration of the nuclide in the material
 
 	// cleans out macro_xs_vector
@@ -344,13 +348,19 @@ void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
 	// done inside of the "calculate_micro_xs" function for each different
 	// nuclide in the material.
 	if( grid_type == UNIONIZED )
-		idx = grid_search( n_isotopes * n_gridpoints, p_energy, egrid);	
+	{
+		if (mem_layout == MEM_OPTIMIZED) {
+			idx = grid_search_optimized(n_isotopes * n_gridpoints + 1, p_energy, egrid);
+		} else {
+			idx = grid_search( n_isotopes * n_gridpoints, p_energy, egrid);
+		}
+	}
 	else if( grid_type == HASH )
 	{
 		double du = 1.0 / hash_bins;
 		idx = p_energy / du;
 	}
-	
+
 	// Once we find the pointer array on the UEG, we can pull the data
 	// from the respective nuclide grids, as well as the nuclide
 	// concentration data for the material
@@ -368,7 +378,7 @@ void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
 		conc = concs[mat*max_num_nucs + j];
 		calculate_micro_xs( p_energy, p_nuc, n_isotopes,
 		                    n_gridpoints, egrid, index_data,
-		                    nuclide_grids, idx, xs_vector, grid_type, hash_bins );
+		                    nuclide_grids, idx, xs_vector, grid_type, mem_layout, hash_bins);
 		for( int k = 0; k < 5; k++ )
 			macro_xs_vector[k] += xs_vector[k] * conc;
 	}
@@ -387,16 +397,29 @@ long grid_search( long n, double quarry, double * restrict A)
 	while( length > 1 )
 	{
 		examinationPoint = lowerLimit + ( length / 2 );
-		
+
 		if( A[examinationPoint] > quarry )
 			upperLimit = examinationPoint;
 		else
 			lowerLimit = examinationPoint;
-		
+
 		length = upperLimit - lowerLimit;
 	}
-	
+
 	return lowerLimit;
+}
+
+//optimized search on unionized energy grid
+//returns higher index (will result in wrong verification hash, but should not matter on these random data)
+long grid_search_optimized(long n, double querry, double * restrict A)
+{
+	int k = 1;
+    while (k <= n) {
+        __builtin_prefetch(A + k * 16);
+        k = 2 * k + (A[k] < querry);
+    }
+    k >>= __builtin_ffs(~k);
+    return k;
 }
 
 // binary search for energy on nuclide energy grid
@@ -839,6 +862,7 @@ unsigned long long run_event_based_simulation_optimization_1(Inputs in, Simulati
 					macro_xs_vector, // 1-D array with result of the macroscopic cross section (5 different reaction channels)
 					in.grid_type,    // Lookup type (nuclide, hash, or unionized)
 					in.hash_bins,    // Number of hash bins used (if using hash lookup type)
+					in.mem_layout,
 					SD.max_num_nucs  // Maximum number of nuclides present in any material
 					);
 

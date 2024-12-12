@@ -422,9 +422,9 @@ Inputs read_CLI( int argc, char * argv[] )
 				print_CLI_error();
 
 			if( strcmp(grid_type, "standard") == 0 )
-				input.grid_type = UNIONIZED;
+				input.mem_layout = MEM_STANDARD;
 			else if( strcmp(grid_type, "optimized") == 0 )
-				input.grid_type = NUCLIDE;
+				input.mem_layout = MEM_OPTIMIZED;
 			else
 				print_CLI_error();
 		}

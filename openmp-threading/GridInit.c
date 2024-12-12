@@ -1,5 +1,6 @@
 #include "XSbench_header.h"
 
+
 SimulationData grid_init_do_not_profile( Inputs in, int mype )
 {
 	// Structure to hold all allocated simuluation data arrays
@@ -156,18 +157,46 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 
 		if( in.grid_type == NUCLIDE )
 		{
-			//need to reorder every nuclide
+			if(mype == 0) printf("Nuclide grid not implemented with this layout, results won't be correct!\n");
 		}
 
 		//
 		if( in.grid_type == UNIONIZED )
 		{
-			//only need to reorder the unionized grid and index grid
+			// create new arrays for energy grid and index grid
+			// they need to be aligned on cache line for nice performance
+			// cache lines are usually 64 bytes
+			double * new_unionized = aligned_alloc(64, SD.length_unionized_energy_array + 1);
+			int * new_index = aligned_alloc(64, SD.length_index_grid + in.n_isotopes);
+
+			assert(new_unionized != NULL);
+			assert(new_index != NULL);
+
+			// fill it up
+			optimize_unionized(SD.unionized_energy_array, new_unionized,
+							   SD.index_grid, new_index,
+							   SD.length_unionized_energy_array, in.n_isotopes, 1);
+
+			//default values at start should be zero, array is indexed from 1
+			new_unionized[0] = 0.0;
+			for (long i = 0; i < in.n_isotopes; ++i) {
+				new_index[i] = 0.0;
+			}
+
+			// switch them over, free the old array
+			free(SD.unionized_energy_array);
+			free(SD.index_grid);
+			SD.unionized_energy_array = new_unionized;
+			SD.index_grid = new_index;
+
+			//change length so it reflects the actual array size (one element larger)
+			SD.length_unionized_energy_array += 1;
+			SD.length_index_grid += in.n_isotopes;
 		}
 
 		if (in.grid_type == HASH )
 		{
-			if(mype == 0) printf("Hash grid not supported with this layout, results won't correct!\n");
+			if(mype == 0) printf("Hash grid not supported with this layout, results won't be correct!\n");
 		}
 	}
 
@@ -245,7 +274,40 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 	nbytes += (SD.nuclide_grid_replica)->n * (SD.nuclide_grid_replica)->size;
 	aml_replicaset_init(SD.nuclide_grid_replica, SD.nuclide_grid);
 #endif
-	
+
 	if(mype == 0) printf("Intialization complete. Allocated %.0lf MB of data.\n", nbytes/1024.0/1024.0 );
 	return SD;
+}
+
+// This is just recursive Eytzinger implementation from here: 
+// https://en.algorithmica.org/hpc/data-structures/binary-search/
+// it should be possible to also do this non-recursively with a linear pass through the input array
+
+void optimize_unionized(double * e_old, double * e_new, double * i_old, double * i_new, long n, long n_iso, int k)
+{
+	static int i = 0;
+	// dirty workaround to make it possible to run it multiple times if needed
+	if (k == 1) {
+        i = 0;
+    }
+
+    if (k <= n) {
+        optimize_unionized(e_old, e_new, i_old, i_new, n, n_iso, 2 * k);
+
+		e_new[k] = e_old[i];
+
+		for(long j = 0; j < n_iso; ++j) {
+			i_new[k * n_iso + j] = i_old[i * n_iso + j];
+		}
+
+		++i;
+
+        optimize_unionized(e_old, e_new, i_old, i_new, n, n_iso, 2 * k + 1);
+    }
+}
+
+
+void optimize_nuclide()
+{
+
 }
