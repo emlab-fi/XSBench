@@ -49,7 +49,7 @@
 
 // Memory layout type
 #define MEM_STANDARD 0
-#define MEM_OPTIMIZED 1
+#define MEM_EYTZINGER 1
 
 // Starting Seed
 #define STARTING_SEED 1070

@@ -151,7 +151,7 @@ SimulationData grid_init_do_not_profile( Inputs in, int mype )
 		}
 	}
 
-	if( in.mem_layout == MEM_OPTIMIZED )
+	if( in.mem_layout == MEM_EYTZINGER )
 	{
 		if(mype == 0) printf("Optimizing memory layout...\n");
 

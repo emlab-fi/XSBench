@@ -349,7 +349,7 @@ void calculate_macro_xs( double p_energy, int mat, long n_isotopes,
 	// nuclide in the material.
 	if( grid_type == UNIONIZED )
 	{
-		if (mem_layout == MEM_OPTIMIZED) {
+		if (mem_layout == MEM_EYTZINGER) {
 			idx = grid_search_optimized(n_isotopes * n_gridpoints + 1, p_energy, egrid);
 		} else {
 			idx = grid_search( n_isotopes * n_gridpoints, p_energy, egrid);

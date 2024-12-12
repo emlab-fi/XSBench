@@ -423,8 +423,8 @@ Inputs read_CLI( int argc, char * argv[] )
 
 			if( strcmp(grid_type, "standard") == 0 )
 				input.mem_layout = MEM_STANDARD;
-			else if( strcmp(grid_type, "optimized") == 0 )
-				input.mem_layout = MEM_OPTIMIZED;
+			else if( strcmp(grid_type, "eytzinger") == 0 )
+				input.mem_layout = MEM_EYTZINGER;
 			else
 				print_CLI_error();
 		}
